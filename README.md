@@ -16,12 +16,7 @@ The NetScaler MPX/VPX instance acts as a load balancer by directly identifying t
 ----------------
 ## Getting the Code
 ----------------
-
-The code can be obtained from the following git repository:
-https://github.com/kubernetes/contrib.git
-
-The area where the controller resides is:
-`contrib/ingress/controllers/citrix-netscaler/`
+`git clone https://github.com/chiradeep/kube-ingress-citrix-netscaler.git`
 
 The associated docker images can be obtained from dockerhub here:
 https://hub.docker.com/u/adhamija/
@@ -37,7 +32,7 @@ Compilation should be perfomed in the citrix-netscaler area using the command:
 ## Sample application load balancing
 
 The sample application described here makes use of the guestbook example which has a web frontend based on php and backend based on redis. The configuration files and additional inforamtion is available here in the tree:
-`contrib/ingress/controllers/citrix-netscaler/example/guestbook`
+`example/guestbook`
 
 The example shown here has one Kubernetes master node and two worker nodes. The following revisions were used for the example: 
 - Kubernetes    1.2.0-0.20
