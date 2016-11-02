@@ -24,6 +24,8 @@ Most consumers should use the Config object to create a Client:
     import (
       client "k8s.io/kubernetes/pkg/client/unversioned"
       "k8s.io/kubernetes/pkg/api"
+      "k8s.io/kubernetes/pkg/fields"
+      "k8s.io/kubernetes/pkg/labels"
     )
 
     [...]
@@ -37,7 +39,7 @@ Most consumers should use the Config object to create a Client:
     if err != nil {
       // handle error
     }
-    pods, err := client.Pods(api.NamespaceDefault).List(api.ListOptions{})
+    pods, err := client.Pods(api.NamespaceDefault).List(labels.Everything(), fields.Everything())
     if err != nil {
       // handle error
     }

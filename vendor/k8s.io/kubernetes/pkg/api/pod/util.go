@@ -24,11 +24,9 @@ import (
 )
 
 const (
-	// TODO: to be de!eted after v1.3 is released. PodSpec has a dedicated Hostname field.
 	// The annotation value is a string specifying the hostname to be used for the pod e.g 'my-webserver-1'
 	PodHostnameAnnotation = "pod.beta.kubernetes.io/hostname"
 
-	// TODO: to be de!eted after v1.3 is released. PodSpec has a dedicated Subdomain field.
 	// The annotation value is a string specifying the subdomain e.g. "my-web-service"
 	// If specified, on the the pod itself, "<hostname>.my-web-service.<namespace>.svc.<cluster domain>" would resolve to
 	// the pod's IP.
@@ -49,7 +47,7 @@ func FindPort(pod *api.Pod, svcPort *api.ServicePort) (int, error) {
 		for _, container := range pod.Spec.Containers {
 			for _, port := range container.Ports {
 				if port.Name == name && port.Protocol == svcPort.Protocol {
-					return int(port.ContainerPort), nil
+					return port.ContainerPort, nil
 				}
 			}
 		}

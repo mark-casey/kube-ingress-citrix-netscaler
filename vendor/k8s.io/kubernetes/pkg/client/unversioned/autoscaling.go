@@ -33,7 +33,7 @@ type AutoscalingClient struct {
 }
 
 func (c *AutoscalingClient) HorizontalPodAutoscalers(namespace string) HorizontalPodAutoscalerInterface {
-	return newHorizontalPodAutoscalers(c, namespace)
+	return newHorizontalPodAutoscalersV1(c, namespace)
 }
 
 func NewAutoscaling(c *restclient.Config) (*AutoscalingClient, error) {
@@ -73,7 +73,6 @@ func setAutoscalingDefaults(config *restclient.Config) error {
 	//}
 
 	config.Codec = api.Codecs.LegacyCodec(*config.GroupVersion)
-	config.NegotiatedSerializer = api.Codecs
 	if config.QPS == 0 {
 		config.QPS = 5
 	}

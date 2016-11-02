@@ -44,7 +44,6 @@ type Store interface {
 	// given list. Store takes ownership of the list, you should not reference
 	// it after calling this function.
 	Replace([]interface{}, string) error
-	Resync() error
 }
 
 // KeyFunc knows how to make a key from an object. Implementations should be deterministic.
@@ -161,11 +160,6 @@ func (c *cache) ListKeys() []string {
 	return c.cacheStorage.ListKeys()
 }
 
-// GetIndexers returns the indexers of cache
-func (c *cache) GetIndexers() Indexers {
-	return c.cacheStorage.GetIndexers()
-}
-
 // Index returns a list of items that match on the index function
 // Index is thread-safe so long as you treat all items as immutable
 func (c *cache) Index(indexName string, obj interface{}) ([]interface{}, error) {
@@ -179,10 +173,6 @@ func (c *cache) ListIndexFuncValues(indexName string) []string {
 
 func (c *cache) ByIndex(indexName, indexKey string) ([]interface{}, error) {
 	return c.cacheStorage.ByIndex(indexName, indexKey)
-}
-
-func (c *cache) AddIndexers(newIndexers Indexers) error {
-	return c.cacheStorage.AddIndexers(newIndexers)
 }
 
 // Get returns the requested item, or sets exists=false.
@@ -216,11 +206,6 @@ func (c *cache) Replace(list []interface{}, resourceVersion string) error {
 	}
 	c.cacheStorage.Replace(items, resourceVersion)
 	return nil
-}
-
-// Resync touches all items in the store to force processing
-func (c *cache) Resync() error {
-	return c.cacheStorage.Resync()
 }
 
 // NewStore returns a Store implemented simply with a map and a lock.

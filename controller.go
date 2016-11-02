@@ -35,7 +35,6 @@ import (
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/util/sets"
 	"k8s.io/kubernetes/pkg/watch"
-	"netscaler"
 )
 
 type StoreToIngressLister struct {
@@ -56,7 +55,7 @@ func ingressRuleToPolicyName(namespace string, rule extensions.IngressRule) []st
 		serviceName := path.Backend.ServiceName
 		servicePort := path.Backend.ServicePort.IntValue()
 		log.Printf("Ingress: Host: %s, path: %s, serviceName: %s, servicePort: %d", host, path_, serviceName, servicePort)
-		policyName := netscaler.GeneratePolicyName(namespace, host, path_)
+		policyName := GeneratePolicyName(namespace, host, path_)
 		resultPolicyNames = append(resultPolicyNames, policyName)
 	}
 	return resultPolicyNames
@@ -107,8 +106,8 @@ func ingressToNetscalerConfig(kubeClient *client.Client, csvserverName string, i
 			path_ := path.Path
 			serviceName := path.Backend.ServiceName
 			servicePort := path.Backend.ServicePort.IntValue()
-			policyName := netscaler.GeneratePolicyName(namespace, host, path_)
-			existing := netscaler.ListBoundPolicy(csvserverName, policyName)
+			policyName := GeneratePolicyName(namespace, host, path_)
+			existing := ListBoundPolicy(csvserverName, policyName)
 			if len(existing) != 0 {
 				log.Printf("Ingress: Policy already exists: %s, Host: %s, path: %s, serviceName: %s, servicePort: %d", policyName, host, path_, serviceName, servicePort)
 				continue
@@ -136,7 +135,7 @@ func ingressToNetscalerConfig(kubeClient *client.Client, csvserverName string, i
 				thisIngEndpoints[ep] = serviceName_mod
 
 				log.Printf("Configure Netscaler: policy: %s Ingress Host: %s, path: %s, serviceName: %s, serviceIp: %s servicePort: %d priority %d", policyName, host, path_, serviceName, serviceIp, servicePort, priority)
-				lbName = netscaler.ConfigureContentVServer(namespace, csvserverName, host, path_, serviceIp, serviceName_mod, servicePort, priority, svcname_refcount)
+				lbName = ConfigureContentVServer(namespace, csvserverName, host, path_, serviceIp, serviceName_mod, servicePort, priority, svcname_refcount)
 				lbNameMap[lbName] = 1
 			}
 			priority += 10
@@ -150,8 +149,8 @@ func ingressToNetscalerConfig(kubeClient *client.Client, csvserverName string, i
 }
 
 func createContentVserverForIngress(ing *extensions.Ingress) (string, error) {
-	csvserverName := netscaler.GenerateCsVserverName(ing.Namespace, ing.Name)
-	if netscaler.FindContentVserver(csvserverName) {
+	csvserverName := GenerateCsVserverName(ing.Namespace, ing.Name)
+	if FindContentVserver(csvserverName) {
 		return csvserverName, nil
 	}
 	protocol, ok := ing.Annotations["protocol"]
@@ -172,7 +171,7 @@ func createContentVserverForIngress(ing *extensions.Ingress) (string, error) {
 		log.Printf("Failed to retrieve annotation publicIP for ingress %s, skipping processing", ing.Name)
 		return "", errors.New("Failed to retrieve annotation publicIP for ingress " + ing.Name)
 	}
-	err = netscaler.CreateContentVServer(csvserverName, publicIP, intPort, protocol)
+	err = CreateContentVServer(csvserverName, publicIP, intPort, protocol)
 	if err != nil {
 		return "", errors.New("Failed to create content vserver " + csvserverName + " for ingress " + ing.Name)
 	}
@@ -193,7 +192,7 @@ func updateEndpoints(knownEndpoints map[string]string,
 		_, prs := thisIngKnownEndpoints[knownEpIP]
 		if prs == false {
 			//Delete the Netscaler Services
-			netscaler.DeleteService(sname)
+			DeleteService(sname)
 			serviceName_mod := "svc_" + ingServiceName + "_" + strings.Replace(knownEpIP, ".", "_", -1)
 			serviceName_mod = strings.Replace(serviceName_mod, ":", "_", -1)
 			_, present := svcname_refcount[serviceName_mod]
@@ -210,7 +209,7 @@ func updateEndpoints(knownEndpoints map[string]string,
 			//Add Netscaler Service
 			lbNames_map := ing_svcname_refcount[ingServiceName]
 			for lbName, _ := range lbNames_map {
-				netscaler.AddAndBindService(lbName, sname, newEpIP)
+				AddAndBindService(lbName, sname, newEpIP)
 				serviceName_mod := "svc_" + ingServiceName + "_" + strings.Replace(newEpIP, ".", "_", -1)
 				serviceName_mod = strings.Replace(serviceName_mod, ":", "_", -1)
 				_, present := svcname_refcount[serviceName_mod]
@@ -232,7 +231,7 @@ func addIngress(kubeClient *client.Client, ing *extensions.Ingress) {
 		return
 	}
 
-	_, priorities := netscaler.ListBoundPolicies(csvserverName)
+	_, priorities := ListBoundPolicies(csvserverName)
 	if len(priorities) > 0 {
 		priority = priorities[len(priorities)-1] + 10
 	}
@@ -241,11 +240,11 @@ func addIngress(kubeClient *client.Client, ing *extensions.Ingress) {
 }
 
 func delIngress(kubeClient *client.Client, ing *extensions.Ingress) {
-	csvserverName := netscaler.GenerateCsVserverName(ing.Namespace, ing.Name)
+	csvserverName := GenerateCsVserverName(ing.Namespace, ing.Name)
 	for _, rule := range ing.Spec.Rules {
 		for _, path := range rule.HTTP.Paths {
 			serviceName := path.Backend.ServiceName
-			netscaler.DeleteContentVServer(csvserverName, svcname_refcount, ing_svcname_refcount[serviceName])
+			DeleteContentVServer(csvserverName, svcname_refcount, ing_svcname_refcount[serviceName])
 			lbName_map := ing_svcname_refcount[serviceName]
 			lbNameMap = lbName_map
 			if len(lbName_map) == 0 {
@@ -406,9 +405,9 @@ func main() {
 	// Performing cleanup - start with a clean NS config. Handle situations where
 	// k8s cluster has changed while NS has stale configuration.
 	var existingCsVservers = sets.NewString()
-	existingCsVservers.Insert(netscaler.ListContentVservers()...)
+	existingCsVservers.Insert(ListContentVservers()...)
 	for _, csvserver := range existingCsVservers.List() {
-		netscaler.DeleteContentVServer(csvserver, svcname_refcount, nil)
+		DeleteContentVServer(csvserver, svcname_refcount, nil)
 	}
 
 	startControllers(kubeClient)

@@ -1,7 +1,7 @@
 {
-	"ImportPath": "github.com/chiradeep/contrib/ingress/controllers/citrix-netscaler",
-	"GoVersion": "go1.6",
-	"GodepVersion": "v60",
+	"ImportPath": "github.com/citrix/kube-ingress-citrix-netscaler",
+	"GoVersion": "go1.7",
+	"GodepVersion": "v74",
 	"Deps": [
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
@@ -16,6 +16,22 @@
 			"ImportPath": "github.com/blang/semver",
 			"Comment": "v3.1.0",
 			"Rev": "aea32c919a18e5ef4537bbd283ff29594b1b0165"
+		},
+		{
+			"ImportPath": "github.com/chiradeep/go-nitro/config/basic",
+			"Rev": "651dcf75be3adecb245c4578f959b747316e9c19"
+		},
+		{
+			"ImportPath": "github.com/chiradeep/go-nitro/config/cs",
+			"Rev": "651dcf75be3adecb245c4578f959b747316e9c19"
+		},
+		{
+			"ImportPath": "github.com/chiradeep/go-nitro/config/lb",
+			"Rev": "651dcf75be3adecb245c4578f959b747316e9c19"
+		},
+		{
+			"ImportPath": "github.com/chiradeep/go-nitro/netscaler",
+			"Rev": "651dcf75be3adecb245c4578f959b747316e9c19"
 		},
 		{
 			"ImportPath": "github.com/cloudfoundry-incubator/candiedyaml",
@@ -321,6 +337,11 @@
 			"Rev": "f4b948bc0f92d586b06e7662180f1cf42ef75542"
 		},
 		{
+			"ImportPath": "k8s.io/kubernetes/pkg/client/cache",
+			"Comment": "v1.3.0-alpha.0-833-gf4b948b",
+			"Rev": "f4b948bc0f92d586b06e7662180f1cf42ef75542"
+		},
+		{
 			"ImportPath": "k8s.io/kubernetes/pkg/client/metrics",
 			"Comment": "v1.3.0-alpha.0-833-gf4b948b",
 			"Rev": "f4b948bc0f92d586b06e7662180f1cf42ef75542"
@@ -342,6 +363,11 @@
 		},
 		{
 			"ImportPath": "k8s.io/kubernetes/pkg/client/unversioned",
+			"Comment": "v1.3.0-alpha.0-833-gf4b948b",
+			"Rev": "f4b948bc0f92d586b06e7662180f1cf42ef75542"
+		},
+		{
+			"ImportPath": "k8s.io/kubernetes/pkg/controller/framework",
 			"Comment": "v1.3.0-alpha.0-833-gf4b948b",
 			"Rev": "f4b948bc0f92d586b06e7662180f1cf42ef75542"
 		},

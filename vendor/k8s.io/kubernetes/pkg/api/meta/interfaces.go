@@ -17,7 +17,6 @@ limitations under the License.
 package meta
 
 import (
-	"k8s.io/kubernetes/pkg/api/meta/metatypes"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/types"
@@ -50,24 +49,10 @@ type Object interface {
 	SetResourceVersion(version string)
 	GetSelfLink() string
 	SetSelfLink(selfLink string)
-	GetCreationTimestamp() unversioned.Time
-	SetCreationTimestamp(timestamp unversioned.Time)
-	GetDeletionTimestamp() *unversioned.Time
-	SetDeletionTimestamp(timestamp *unversioned.Time)
 	GetLabels() map[string]string
 	SetLabels(labels map[string]string)
 	GetAnnotations() map[string]string
 	SetAnnotations(annotations map[string]string)
-	GetFinalizers() []string
-	SetFinalizers(finalizers []string)
-	GetOwnerReferences() []metatypes.OwnerReference
-	SetOwnerReferences([]metatypes.OwnerReference)
-}
-
-var _ Object = &runtime.Unstructured{}
-
-type ListMetaAccessor interface {
-	GetListMeta() List
 }
 
 // List lets you work with list metadata from any of the versioned or

@@ -28,9 +28,8 @@ import (
 // of the factory methods that the time package offers.
 //
 // +protobuf.options.marshal=false
-// +protobuf.as=Timestamp
 type Time struct {
-	time.Time `protobuf:"-"`
+	time.Time `protobuf:"Timestamp,1,req,name=time"`
 }
 
 // NewTime returns a wrapped instance of the provided time

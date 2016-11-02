@@ -26,22 +26,14 @@ import (
 // TLSConfigFor returns a tls.Config that will provide the transport level security defined
 // by the provided Config. Will return nil if no transport level security is requested.
 func TLSConfigFor(config *Config) (*tls.Config, error) {
-	cfg, err := config.transportConfig()
-	if err != nil {
-		return nil, err
-	}
-	return transport.TLSConfigFor(cfg)
+	return transport.TLSConfigFor(config.transportConfig())
 }
 
 // TransportFor returns an http.RoundTripper that will provide the authentication
 // or transport level security defined by the provided Config. Will return the
 // default http.DefaultTransport if no special case behavior is needed.
 func TransportFor(config *Config) (http.RoundTripper, error) {
-	cfg, err := config.transportConfig()
-	if err != nil {
-		return nil, err
-	}
-	return transport.New(cfg)
+	return transport.New(config.transportConfig())
 }
 
 // HTTPWrappersForConfig wraps a round tripper with any relevant layered behavior from the
@@ -49,34 +41,15 @@ func TransportFor(config *Config) (http.RoundTripper, error) {
 // the underlying connection (like WebSocket or HTTP2 clients). Pure HTTP clients should use
 // the higher level TransportFor or RESTClientFor methods.
 func HTTPWrappersForConfig(config *Config, rt http.RoundTripper) (http.RoundTripper, error) {
-	cfg, err := config.transportConfig()
-	if err != nil {
-		return nil, err
-	}
-	return transport.HTTPWrappersForConfig(cfg, rt)
+	return transport.HTTPWrappersForConfig(config.transportConfig(), rt)
 }
 
 // transportConfig converts a client config to an appropriate transport config.
-func (c *Config) transportConfig() (*transport.Config, error) {
-	wt := c.WrapTransport
-	if c.AuthProvider != nil {
-		provider, err := GetAuthProvider(c.Host, c.AuthProvider, c.AuthConfigPersister)
-		if err != nil {
-			return nil, err
-		}
-		if wt != nil {
-			previousWT := wt
-			wt = func(rt http.RoundTripper) http.RoundTripper {
-				return provider.WrapTransport(previousWT(rt))
-			}
-		} else {
-			wt = provider.WrapTransport
-		}
-	}
+func (c *Config) transportConfig() *transport.Config {
 	return &transport.Config{
 		UserAgent:     c.UserAgent,
 		Transport:     c.Transport,
-		WrapTransport: wt,
+		WrapTransport: c.WrapTransport,
 		TLS: transport.TLSConfig{
 			CAFile:   c.CAFile,
 			CAData:   c.CAData,
@@ -89,6 +62,5 @@ func (c *Config) transportConfig() (*transport.Config, error) {
 		Username:    c.Username,
 		Password:    c.Password,
 		BearerToken: c.BearerToken,
-		Impersonate: c.Impersonate,
-	}, nil
+	}
 }

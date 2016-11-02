@@ -89,8 +89,8 @@ func (f *FakeControllerSource) DeleteDropWatch(lastValue runtime.Object) {
 	f.Change(watch.Event{Type: watch.Deleted, Object: lastValue}, 0)
 }
 
-func (f *FakeControllerSource) key(accessor meta.Object) nnu {
-	return nnu{accessor.GetNamespace(), accessor.GetName(), accessor.GetUID()}
+func (f *FakeControllerSource) key(meta *api.ObjectMeta) nnu {
+	return nnu{meta.Namespace, meta.Name, meta.UID}
 }
 
 // Change records the given event (setting the object's resource version) and
@@ -99,15 +99,15 @@ func (f *FakeControllerSource) Change(e watch.Event, watchProbability float64) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
-	accessor, err := meta.Accessor(e.Object)
+	objMeta, err := api.ObjectMetaFor(e.Object)
 	if err != nil {
 		panic(err) // this is test code only
 	}
 
 	resourceVersion := len(f.changes) + 1
-	accessor.SetResourceVersion(strconv.Itoa(resourceVersion))
+	objMeta.ResourceVersion = strconv.Itoa(resourceVersion)
 	f.changes = append(f.changes, e)
-	key := f.key(accessor)
+	key := f.key(objMeta)
 	switch e.Type {
 	case watch.Added, watch.Modified:
 		f.items[key] = e.Object

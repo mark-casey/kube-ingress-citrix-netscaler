@@ -18,7 +18,6 @@ package runtime
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/url"
@@ -78,13 +77,13 @@ func EncodeOrDie(e Encoder, obj Object) string {
 
 // UseOrCreateObject returns obj if the canonical ObjectKind returned by the provided typer matches gvk, or
 // invokes the ObjectCreator to instantiate a new gvk. Returns an error if the typer cannot find the object.
-func UseOrCreateObject(t ObjectTyper, c ObjectCreater, gvk unversioned.GroupVersionKind, obj Object) (Object, error) {
+func UseOrCreateObject(t Typer, c ObjectCreater, gvk unversioned.GroupVersionKind, obj Object) (Object, error) {
 	if obj != nil {
-		into, _, err := t.ObjectKinds(obj)
+		into, _, err := t.ObjectKind(obj)
 		if err != nil {
 			return nil, err
 		}
-		if gvk == into[0] {
+		if gvk == *into {
 			return obj, nil
 		}
 	}
@@ -116,7 +115,7 @@ func (n NoopDecoder) Decode(data []byte, gvk *unversioned.GroupVersionKind, into
 // NewParameterCodec creates a ParameterCodec capable of transforming url values into versioned objects and back.
 func NewParameterCodec(scheme *Scheme) ParameterCodec {
 	return &parameterCodec{
-		typer:     scheme,
+		typer:     ObjectTyperToTyper(scheme),
 		convertor: scheme,
 		creator:   scheme,
 	}
@@ -124,7 +123,7 @@ func NewParameterCodec(scheme *Scheme) ParameterCodec {
 
 // parameterCodec implements conversion to and from query parameters and objects.
 type parameterCodec struct {
-	typer     ObjectTyper
+	typer     Typer
 	convertor ObjectConvertor
 	creator   ObjectCreater
 }
@@ -137,11 +136,10 @@ func (c *parameterCodec) DecodeParameters(parameters url.Values, from unversione
 	if len(parameters) == 0 {
 		return nil
 	}
-	targetGVKs, _, err := c.typer.ObjectKinds(into)
+	targetGVK, _, err := c.typer.ObjectKind(into)
 	if err != nil {
 		return err
 	}
-	targetGVK := targetGVKs[0]
 	if targetGVK.GroupVersion() == from {
 		return c.convertor.Convert(&parameters, into)
 	}
@@ -158,41 +156,16 @@ func (c *parameterCodec) DecodeParameters(parameters url.Values, from unversione
 // EncodeParameters converts the provided object into the to version, then converts that object to url.Values.
 // Returns an error if conversion is not possible.
 func (c *parameterCodec) EncodeParameters(obj Object, to unversioned.GroupVersion) (url.Values, error) {
-	gvks, _, err := c.typer.ObjectKinds(obj)
+	gvk, _, err := c.typer.ObjectKind(obj)
 	if err != nil {
 		return nil, err
 	}
-	gvk := gvks[0]
 	if to != gvk.GroupVersion() {
-		out, err := c.convertor.ConvertToVersion(obj, to)
+		out, err := c.convertor.ConvertToVersion(obj, to.String())
 		if err != nil {
 			return nil, err
 		}
 		obj = out
 	}
 	return queryparams.Convert(obj)
-}
-
-type base64Serializer struct {
-	Serializer
-}
-
-func NewBase64Serializer(s Serializer) Serializer {
-	return &base64Serializer{s}
-}
-
-func (s base64Serializer) EncodeToStream(obj Object, stream io.Writer, overrides ...unversioned.GroupVersion) error {
-	e := base64.NewEncoder(base64.StdEncoding, stream)
-	err := s.Serializer.EncodeToStream(obj, e, overrides...)
-	e.Close()
-	return err
-}
-
-func (s base64Serializer) Decode(data []byte, defaults *unversioned.GroupVersionKind, into Object) (Object, *unversioned.GroupVersionKind, error) {
-	out := make([]byte, base64.StdEncoding.DecodedLen(len(data)))
-	n, err := base64.StdEncoding.Decode(out, data)
-	if err != nil {
-		return nil, nil, err
-	}
-	return s.Serializer.Decode(out[:n], defaults, into)
 }

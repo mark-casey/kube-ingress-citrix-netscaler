@@ -22,13 +22,11 @@ import (
 
 func addDefaultingFuncs(scheme *runtime.Scheme) {
 	scheme.AddDefaultingFuncs(
-		SetDefaults_HorizontalPodAutoscaler,
+		func(obj *HorizontalPodAutoscaler) {
+			if obj.Spec.MinReplicas == nil {
+				minReplicas := int32(1)
+				obj.Spec.MinReplicas = &minReplicas
+			}
+		},
 	)
-}
-
-func SetDefaults_HorizontalPodAutoscaler(obj *HorizontalPodAutoscaler) {
-	if obj.Spec.MinReplicas == nil {
-		minReplicas := int32(1)
-		obj.Spec.MinReplicas = &minReplicas
-	}
 }

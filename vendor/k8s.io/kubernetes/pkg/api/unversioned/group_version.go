@@ -29,8 +29,8 @@ import (
 // `resource.group.com` -> `group=com, version=group, resource=resource` and `group=group.com, resource=resource`
 func ParseResourceArg(arg string) (*GroupVersionResource, GroupResource) {
 	var gvr *GroupVersionResource
-	if strings.Count(arg, ".") >= 2 {
-		s := strings.SplitN(arg, ".", 3)
+	s := strings.SplitN(arg, ".", 3)
+	if len(s) == 3 {
 		gvr = &GroupVersionResource{Group: s[2], Version: s[1], Resource: s[0]}
 	}
 
@@ -42,8 +42,8 @@ func ParseResourceArg(arg string) (*GroupVersionResource, GroupResource) {
 //
 // +protobuf.options.(gogoproto.goproto_stringer)=false
 type GroupResource struct {
-	Group    string `protobuf:"bytes,1,opt,name=group"`
-	Resource string `protobuf:"bytes,2,opt,name=resource"`
+	Group    string
+	Resource string
 }
 
 func (gr GroupResource) WithVersion(version string) GroupVersionResource {
@@ -64,11 +64,12 @@ func (gr *GroupResource) String() string {
 // ParseGroupResource turns "resource.group" string into a GroupResource struct.  Empty strings are allowed
 // for each field.
 func ParseGroupResource(gr string) GroupResource {
-	if i := strings.Index(gr, "."); i == -1 {
-		return GroupResource{Resource: gr}
-	} else {
-		return GroupResource{Group: gr[i+1:], Resource: gr[:i]}
+	s := strings.SplitN(gr, ".", 2)
+	if len(s) == 1 {
+		return GroupResource{Resource: s[0]}
 	}
+
+	return GroupResource{Group: s[1], Resource: s[0]}
 }
 
 // GroupVersionResource unambiguously identifies a resource.  It doesn't anonymously include GroupVersion
@@ -76,9 +77,9 @@ func ParseGroupResource(gr string) GroupResource {
 //
 // +protobuf.options.(gogoproto.goproto_stringer)=false
 type GroupVersionResource struct {
-	Group    string `protobuf:"bytes,1,opt,name=group"`
-	Version  string `protobuf:"bytes,2,opt,name=version"`
-	Resource string `protobuf:"bytes,3,opt,name=resource"`
+	Group    string
+	Version  string
+	Resource string
 }
 
 func (gvr GroupVersionResource) IsEmpty() bool {
@@ -102,8 +103,8 @@ func (gvr *GroupVersionResource) String() string {
 //
 // +protobuf.options.(gogoproto.goproto_stringer)=false
 type GroupKind struct {
-	Group string `protobuf:"bytes,1,opt,name=group"`
-	Kind  string `protobuf:"bytes,2,opt,name=kind"`
+	Group string
+	Kind  string
 }
 
 func (gk GroupKind) IsEmpty() bool {
@@ -126,9 +127,9 @@ func (gk *GroupKind) String() string {
 //
 // +protobuf.options.(gogoproto.goproto_stringer)=false
 type GroupVersionKind struct {
-	Group   string `protobuf:"bytes,1,opt,name=group"`
-	Version string `protobuf:"bytes,2,opt,name=version"`
-	Kind    string `protobuf:"bytes,3,opt,name=kind"`
+	Group   string
+	Version string
+	Kind    string
 }
 
 // IsEmpty returns true if group, version, and kind are empty
@@ -152,8 +153,8 @@ func (gvk GroupVersionKind) String() string {
 //
 // +protobuf.options.(gogoproto.goproto_stringer)=false
 type GroupVersion struct {
-	Group   string `protobuf:"bytes,1,opt,name=group"`
-	Version string `protobuf:"bytes,2,opt,name=version"`
+	Group   string
+	Version string
 }
 
 // IsEmpty returns true if group and version are empty
@@ -188,14 +189,18 @@ func ParseGroupVersion(gv string) (GroupVersion, error) {
 		return GroupVersion{}, nil
 	}
 
-	switch strings.Count(gv, "/") {
-	case 0:
-		return GroupVersion{"", gv}, nil
-	case 1:
-		i := strings.Index(gv, "/")
-		return GroupVersion{gv[:i], gv[i+1:]}, nil
+	s := strings.Split(gv, "/")
+	// "v1" is the only special case. Otherwise GroupVersion is expected to contain
+	// one "/" dividing the string into two parts.
+	switch {
+	case len(s) == 1 && gv == "v1":
+		return GroupVersion{"", "v1"}, nil
+	case len(s) == 1:
+		return GroupVersion{"", s[0]}, nil
+	case len(s) == 2:
+		return GroupVersion{s[0], s[1]}, nil
 	default:
-		return GroupVersion{}, fmt.Errorf("unexpected GroupVersion string: %v", gv)
+		return GroupVersion{}, fmt.Errorf("Unexpected GroupVersion string: %v", gv)
 	}
 }
 
@@ -254,11 +259,11 @@ func (gvk *GroupVersionKind) ToAPIVersionAndKind() (string, string) {
 // do not use TypeMeta. This method exists to support test types and legacy serializations
 // that have a distinct group and kind.
 // TODO: further reduce usage of this method.
-func FromAPIVersionAndKind(apiVersion, kind string) GroupVersionKind {
+func FromAPIVersionAndKind(apiVersion, kind string) *GroupVersionKind {
 	if gv, err := ParseGroupVersion(apiVersion); err == nil {
-		return GroupVersionKind{Group: gv.Group, Version: gv.Version, Kind: kind}
+		return &GroupVersionKind{Group: gv.Group, Version: gv.Version, Kind: kind}
 	}
-	return GroupVersionKind{Kind: kind}
+	return &GroupVersionKind{Kind: kind}
 }
 
 // All objects that are serialized from a Scheme encode their type information. This interface is used
@@ -268,10 +273,10 @@ func FromAPIVersionAndKind(apiVersion, kind string) GroupVersionKind {
 type ObjectKind interface {
 	// SetGroupVersionKind sets or clears the intended serialized kind of an object. Passing kind nil
 	// should clear the current setting.
-	SetGroupVersionKind(kind GroupVersionKind)
+	SetGroupVersionKind(kind *GroupVersionKind)
 	// GroupVersionKind returns the stored group, version, and kind of an object, or nil if the object does
 	// not expose or provide these fields.
-	GroupVersionKind() GroupVersionKind
+	GroupVersionKind() *GroupVersionKind
 }
 
 // EmptyObjectKind implements the ObjectKind interface as a noop
@@ -281,7 +286,7 @@ var EmptyObjectKind = emptyObjectKind{}
 type emptyObjectKind struct{}
 
 // SetGroupVersionKind implements the ObjectKind interface
-func (emptyObjectKind) SetGroupVersionKind(gvk GroupVersionKind) {}
+func (emptyObjectKind) SetGroupVersionKind(gvk *GroupVersionKind) {}
 
 // GroupVersionKind implements the ObjectKind interface
-func (emptyObjectKind) GroupVersionKind() GroupVersionKind { return GroupVersionKind{} }
+func (emptyObjectKind) GroupVersionKind() *GroupVersionKind { return nil }

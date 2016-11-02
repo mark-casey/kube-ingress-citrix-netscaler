@@ -69,6 +69,7 @@ var RESTScopeRoot = &restScope{
 //
 // TODO: Only accept plural for some operations for increased control?
 // (`get pod bar` vs `get pods bar`)
+// TODO these maps should be keyed based on GroupVersionKinds
 type DefaultRESTMapper struct {
 	defaultGroupVersions []unversioned.GroupVersion
 
@@ -142,8 +143,6 @@ var unpluralizedSuffixes = []string{
 }
 
 // KindToResource converts Kind to a resource name.
-// Broken. This method only "sort of" works when used outside of this package.  It assumes that Kinds and Resources match
-// and they aren't guaranteed to do so.
 func KindToResource(kind unversioned.GroupVersionKind) ( /*plural*/ unversioned.GroupVersionResource /*singular*/, unversioned.GroupVersionResource) {
 	kindName := kind.Kind
 	if len(kindName) == 0 {
@@ -200,19 +199,7 @@ func (m *DefaultRESTMapper) ResourceSingularizer(resourceType string) (string, e
 	return singular.Resource, nil
 }
 
-// coerceResourceForMatching makes the resource lower case and converts internal versions to unspecified (legacy behavior)
-func coerceResourceForMatching(resource unversioned.GroupVersionResource) unversioned.GroupVersionResource {
-	resource.Resource = strings.ToLower(resource.Resource)
-	if resource.Version == runtime.APIVersionInternal {
-		resource.Version = ""
-	}
-
-	return resource
-}
-
-func (m *DefaultRESTMapper) ResourcesFor(input unversioned.GroupVersionResource) ([]unversioned.GroupVersionResource, error) {
-	resource := coerceResourceForMatching(input)
-
+func (m *DefaultRESTMapper) ResourcesFor(resource unversioned.GroupVersionResource) ([]unversioned.GroupVersionResource, error) {
 	hasResource := len(resource.Resource) > 0
 	hasGroup := len(resource.Group) > 0
 	hasVersion := len(resource.Version) > 0
@@ -289,7 +276,10 @@ func (m *DefaultRESTMapper) ResourceFor(resource unversioned.GroupVersionResourc
 }
 
 func (m *DefaultRESTMapper) KindsFor(input unversioned.GroupVersionResource) ([]unversioned.GroupVersionKind, error) {
-	resource := coerceResourceForMatching(input)
+	resource := input.GroupVersion().WithResource(strings.ToLower(input.Resource))
+	if resource.Version == runtime.APIVersionInternal {
+		resource.Version = ""
+	}
 
 	hasResource := len(resource.Resource) > 0
 	hasGroup := len(resource.Group) > 0

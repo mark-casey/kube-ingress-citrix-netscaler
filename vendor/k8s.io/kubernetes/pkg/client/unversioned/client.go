@@ -47,7 +47,6 @@ type Interface interface {
 	Autoscaling() AutoscalingInterface
 	Batch() BatchInterface
 	Extensions() ExtensionsInterface
-	Rbac() RbacInterface
 	Discovery() discovery.DiscoveryInterface
 }
 
@@ -120,9 +119,6 @@ type Client struct {
 	*AutoscalingClient
 	*BatchClient
 	*ExtensionsClient
-	*AppsClient
-	*PolicyClient
-	*RbacClient
 	*discovery.DiscoveryClient
 }
 
@@ -158,14 +154,6 @@ func (c *Client) Batch() BatchInterface {
 
 func (c *Client) Extensions() ExtensionsInterface {
 	return c.ExtensionsClient
-}
-
-func (c *Client) Apps() AppsInterface {
-	return c.AppsClient
-}
-
-func (c *Client) Rbac() RbacInterface {
-	return c.RbacClient
 }
 
 func (c *Client) Discovery() discovery.DiscoveryInterface {

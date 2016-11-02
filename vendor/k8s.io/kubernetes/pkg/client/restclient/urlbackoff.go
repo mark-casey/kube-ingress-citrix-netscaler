@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"k8s.io/kubernetes/pkg/util/flowcontrol"
+	"k8s.io/kubernetes/pkg/util"
 	"k8s.io/kubernetes/pkg/util/sets"
 )
 
@@ -42,7 +42,7 @@ type BackoffManager interface {
 // we need for URL specific exponential backoff.
 type URLBackoff struct {
 	// Uses backoff as underlying implementation.
-	Backoff *flowcontrol.Backoff
+	Backoff *util.Backoff
 }
 
 // NoBackoff is a stub implementation, can be used for mocking or else as a default.
@@ -52,20 +52,18 @@ type NoBackoff struct {
 func (n *NoBackoff) UpdateBackoff(actualUrl *url.URL, err error, responseCode int) {
 	// do nothing.
 }
-
 func (n *NoBackoff) CalculateBackoff(actualUrl *url.URL) time.Duration {
 	return 0 * time.Second
 }
-
 func (n *NoBackoff) Sleep(d time.Duration) {
-	time.Sleep(d)
+	return
 }
 
 // Disable makes the backoff trivial, i.e., sets it to zero.  This might be used
 // by tests which want to run 1000s of mock requests without slowing down.
 func (b *URLBackoff) Disable() {
 	glog.V(4).Infof("Disabling backoff strategy")
-	b.Backoff = flowcontrol.NewBackOff(0*time.Second, 0*time.Second)
+	b.Backoff = util.NewBackOff(0*time.Second, 0*time.Second)
 }
 
 // baseUrlKey returns the key which urls will be mapped to.

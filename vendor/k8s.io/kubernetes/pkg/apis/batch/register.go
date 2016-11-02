@@ -19,6 +19,7 @@ package batch
 import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/runtime"
 )
 
@@ -46,17 +47,8 @@ func AddToScheme(scheme *runtime.Scheme) {
 // Adds the list of known types to api.Scheme.
 func addKnownTypes(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&Job{},
-		&JobList{},
-		&JobTemplate{},
-		&ScheduledJob{},
-		&ScheduledJobList{},
+		&extensions.Job{},
+		&extensions.JobList{},
 		&api.ListOptions{},
 	)
 }
-
-func (obj *Job) GetObjectKind() unversioned.ObjectKind              { return &obj.TypeMeta }
-func (obj *JobList) GetObjectKind() unversioned.ObjectKind          { return &obj.TypeMeta }
-func (obj *JobTemplate) GetObjectKind() unversioned.ObjectKind      { return &obj.TypeMeta }
-func (obj *ScheduledJob) GetObjectKind() unversioned.ObjectKind     { return &obj.TypeMeta }
-func (obj *ScheduledJobList) GetObjectKind() unversioned.ObjectKind { return &obj.TypeMeta }

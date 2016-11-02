@@ -5,8 +5,11 @@ all: controller
 TAG = 0.0
 PREFIX = gcr.io/google_containers/netscaler-ingress
 
-controller: controller.go
-	CGO_ENABLED=0 GOOS=linux godep go build -a -installsuffix cgo -ldflags '-w' -o controller ./controller.go
+controller_linux: controller.go netscaler.go
+	CGO_ENABLED=0 GOOS=linux godep go build -a -installsuffix cgo -ldflags '-w' -o controller 
+
+controller: controller.go netscaler.go
+	godep go build  -o controller 
 
 #container: controller
 #	docker build -t $(PREFIX):$(TAG) .
@@ -15,4 +18,4 @@ controller: controller.go
 #	gcloud docker push $(PREFIX):$(TAG)
 
 clean:
-	rm -f controller
+	rm -f controller 
