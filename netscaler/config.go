@@ -17,7 +17,6 @@ limitations under the License.
 package netscaler
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/chiradeep/go-nitro/config/basic"
@@ -298,85 +297,50 @@ func ListBoundPolicies(csvserverName string) ([]string, []int) {
 }
 
 func ListBoundPolicy(csvserverName string, policyName string) map[string]int {
-	result, err := listBoundResources(csvserverName, "csvserver", "cspolicy", "policyname", policyName)
+	client, _ := netscaler.NewNitroClientFromEnv()
+	ret := make(map[string]int)
+	policy, err := client.FindBoundResource(netscaler.Csvserver.Type(), csvserverName, netscaler.Cspolicy.Type(), "policyname", policyName)
 	if err != nil {
 		log.Println("No bindings for CS Vserver %s policy %", csvserverName, policyName)
-		return map[string]int{}
-	}
-	var data map[string]interface{}
-	if err := json.Unmarshal(result, &data); err != nil {
-		log.Println("Failed to unmarshal Netscaler Response!")
-		return map[string]int{}
-	}
-
-	ret := make(map[string]int)
-	if data["csvserver_cspolicy_binding"] == nil {
 		return ret
 	}
-	bindings := data["csvserver_cspolicy_binding"].([]interface{})
-	for _, b := range bindings {
-		binding := b.(map[string]interface{})
-		pname := binding["policyname"].(string)
-		prio := binding["priority"].(string)
-		ret[pname], _ = strconv.Atoi(prio)
-	}
+
+	prio := policy["priority"].(string)
+	ret[policyName], _ = strconv.Atoi(prio)
+
 	return ret
 }
 
 func ListPolicyAction(policyName string) string {
-	result, err := listResource("cspolicy", policyName)
+	client, _ := netscaler.NewNitroClientFromEnv()
+	policy, err := client.FindResource(netscaler.Cspolicy.Type(), policyName)
 	if err != nil {
 		log.Println("No policy %s", policyName)
 		return ""
 	}
-	var data map[string]interface{}
-	if err := json.Unmarshal(result, &data); err != nil {
-		log.Println("Failed to unmarshal Netscaler Response!")
-		return ""
-	}
-
-	policy := data["cspolicy"].([]interface{})[0]
-	return policy.(map[string]interface{})["action"].(string)
+	return policy["action"].(string)
 }
 
 func ListLbVserverForAction(actionName string) (string, error) {
-	result, err := listResource("csaction", actionName)
+	client, _ := netscaler.NewNitroClientFromEnv()
+	action, err := client.FindResource(netscaler.Csaction.Type(), actionName)
 	if err != nil {
 		log.Println("No action %s", actionName)
 		return "", errors.New("No action " + actionName)
 	}
-	var data map[string]interface{}
-	if err := json.Unmarshal(result, &data); err != nil {
-		log.Println("Failed to unmarshal Netscaler Response!")
-		return "", errors.New("Failed to unmarshal Netscaler response")
-	}
-
-	action := data["csaction"].([]interface{})[0]
-	return action.(map[string]interface{})["targetlbvserver"].(string), nil
+	return action["targetlbvserver"].(string), nil
 }
 
 func ListBoundServicesForLB(lbName string) ([]string, error) {
-	result, err := listBoundResources(lbName, "lbvserver", "service", "", "")
+	client, _ := netscaler.NewNitroClientFromEnv()
+	bindings, err := client.FindAllBoundResources(netscaler.Lbvserver.Type(), lbName, netscaler.Service.Type())
 	ret := []string{}
 	if err != nil {
 		log.Println("No bindings for LB Vserver %s", lbName)
 		return ret, nil
 	}
-	var data map[string]interface{}
-	if err := json.Unmarshal(result, &data); err != nil {
-		log.Println("Failed to unmarshal Netscaler Response!")
-		return ret, errors.New("Failed to unmarshal Netscaler response")
-	}
-
-	if data["lbvserver_service_binding"] == nil {
-		return ret, nil
-	}
-
-	bindings := data["lbvserver_service_binding"].([]interface{})
 	for _, b := range bindings {
-		binding := b.(map[string]interface{})
-		sname := binding["servicename"].(string)
-
+		sname := b["servicename"].(string)
 		ret = append(ret, sname)
 	}
 	return ret, nil
