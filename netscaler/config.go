@@ -377,40 +377,6 @@ func ListLbVserverForAction(actionName string) (string, error) {
 	return action.(map[string]interface{})["targetlbvserver"].(string), nil
 }
 
-func DeleteCsPolicies(csvserverName string, policyNames []string) {
-
-	for _, policyName := range policyNames {
-		//unbind the content switch policy from the content switching vserver
-		resourceType := "csvserver_cspolicy_binding"
-		_, err := unbindResource(resourceType, csvserverName, "policyName", policyName)
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed to unbind Content Switching Policy %s fromo Content Switching VServer %s, err=%s", policyName, csvserverName, err))
-			return
-		}
-
-		resourceType = "cspolicy"
-		//if there was an action in the policy, find that action
-		action := ListPolicyAction(policyName)
-
-		//delete the content switch policy that uses the action
-		resourceType = "cspolicy"
-
-		_, err = deleteResource(resourceType, policyName)
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed to delete Content Switching Policy %s, err=%s", policyName, err))
-			return
-		}
-
-		_, err = deleteResource("csaction", action)
-
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed to delete Content Switching Policy Action%s, err=%s", action, err))
-			return
-		}
-
-	}
-}
-
 func ListBoundServicesForLB(lbName string) ([]string, error) {
 	result, err := listBoundResources(lbName, "lbvserver", "service", "", "")
 	ret := []string{}
