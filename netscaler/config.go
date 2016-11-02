@@ -30,50 +30,6 @@ import (
 	"strings"
 )
 
-type NetscalerService struct {
-	Name        string `json:"name"`
-	Ip          string `json:"ip"`
-	ServiceType string `json:"serviceType"`
-	Port        int    `json:"port"`
-}
-
-type NetscalerLB struct {
-	Name        string `json:"name"`
-	Ipv46       string `json:"ipv46"`
-	ServiceType string `json:"serviceType"`
-	Port        int    `json:"port"`
-}
-
-type NetscalerLBServiceBinding struct {
-	Name        string `json:"name"`
-	ServiceName string `json:"serviceName"`
-}
-
-type NetscalerCsAction struct {
-	Name            string `json:"name"`
-	TargetLBVserver string `json:"targetLBVserver"`
-}
-
-type NetscalerCsPolicy struct {
-	PolicyName string `json:"policyName"`
-	Rule       string `json:"rule"`
-	Action     string `json:"action"`
-}
-
-type NetscalerCsPolicyBinding struct {
-	Name       string `json:"name"`
-	PolicyName string `json:"policyName"`
-	Priority   int    `json:"priority"`
-	Bindpoint  string `json:"bindpoint"`
-}
-
-type NetscalerCsVserver struct {
-	Name        string `json:"name"`
-	ServiceType string `json:"serviceType"`
-	Ipv46       string `json:"ipv46"`
-	Port        int    `json:"port"`
-}
-
 func GenerateLbName(namespace string, host string) string {
 	lbName := "lb_" + strings.Replace(host, ".", "_", -1)
 	return lbName
@@ -108,8 +64,8 @@ func GenerateActionName(namespace string, host string, path string) string {
 }
 
 func DeleteService(sname string) {
-	resourceType := "service"
-	_, err := deleteResource(resourceType, sname)
+	client, _ := netscaler.NewNitroClientFromEnv()
+	err := client.DeleteResource(netscaler.Service.Type(), sname)
 	if err != nil {
 		log.Println(fmt.Sprintf("Failed to delete service %s err=%s", sname, err))
 	}
@@ -297,12 +253,8 @@ func DeleteContentVServer(csvserverName string, svcname_refcount map[string]int,
 }
 
 func FindContentVserver(csvserverName string) bool {
-	_, err := listResource("csvserver", csvserverName)
-	if err != nil {
-		log.Printf("No csvserver %s", csvserverName)
-		return false
-	}
-	return true
+	client, _ := netscaler.NewNitroClientFromEnv()
+	return client.ResourceExists(netscaler.Csvserver.Type(), csvserverName)
 }
 
 func ListContentVservers() []string {
