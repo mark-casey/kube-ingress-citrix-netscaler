@@ -259,27 +259,15 @@ func FindContentVserver(csvserverName string) bool {
 
 func ListContentVservers() []string {
 	result := []string{}
+	client, _ := netscaler.NewNitroClientFromEnv()
 
-	body, err := listResource("csvserver", "")
+	vservers, err := client.FindAllResources(netscaler.Csvserver.Type())
 	if err != nil {
-		log.Printf("No csvservers found")
+		log.Printf("Failed to find any resources of type content vserver")
 		return result
 	}
-	var data map[string]interface{}
-	if err := json.Unmarshal(body, &data); err != nil {
-		log.Println("Failed to unmarshal Netscaler Response!")
-		return []string{}
-	}
-	if data["csvserver"] == nil {
-		log.Printf("No csvservers found")
-		return result
-	}
-
-	csvs := data["csvserver"].([]interface{})
-	for _, c := range csvs {
-		csvserver := c.(map[string]interface{})
-		csname := csvserver["name"].(string)
-
+	for _, c := range vservers {
+		csname := c["name"].(string)
 		result = append(result, csname)
 	}
 	return result
@@ -287,33 +275,23 @@ func ListContentVservers() []string {
 }
 
 func ListBoundPolicies(csvserverName string) ([]string, []int) {
-	result, err := listBoundResources(csvserverName, "csvserver", "cspolicy", "", "")
 	ret1 := []string{}
 	ret2 := []int{}
+	client, _ := netscaler.NewNitroClientFromEnv()
+	policies, err := client.FindAllBoundResources(netscaler.Csvserver.Type(), csvserverName, netscaler.Cspolicy.Type())
 	if err != nil {
 		log.Println("No bindings for CS Vserver %s", csvserverName)
 		return ret1, ret2
 	}
-	var data map[string]interface{}
-	if err := json.Unmarshal(result, &data); err != nil {
-		log.Println("Failed to unmarshal Netscaler Response!")
-		return ret1, ret2
-	}
-
-	if data["csvserver_cspolicy_binding"] == nil {
-		return ret1, ret2
-	}
-
-	bindings := data["csvserver_cspolicy_binding"].([]interface{})
-	for _, b := range bindings {
-		binding := b.(map[string]interface{})
-		pname := binding["policyname"].(string)
-		prio, err := strconv.Atoi(binding["priority"].(string))
+	for _, policy := range policies {
+		pname := policy["policyname"].(string)
+		prio, err := strconv.Atoi(policy["priority"].(string))
 		if err != nil {
 			continue
 		}
 		ret1 = append(ret1, pname)
 		ret2 = append(ret2, prio)
+
 	}
 	sort.Ints(ret2)
 	return ret1, ret2
