@@ -20,6 +20,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/chiradeep/go-nitro/config/basic"
+	"github.com/chiradeep/go-nitro/config/cs"
+	"github.com/chiradeep/go-nitro/config/lb"
+	"github.com/chiradeep/go-nitro/netscaler"
 	"log"
 	"sort"
 	"strconv"
@@ -113,44 +117,23 @@ func DeleteService(sname string) {
 
 func AddAndBindService(lbName string, sname string, IpPort string) {
 	//create a Netscaler Service that represents the Kubernetes service
-	resourceType := "service"
+	client, _ := netscaler.NewNitroClientFromEnv()
 	ep_ip_port := strings.Split(IpPort, ":")
 	servicePort, _ := strconv.Atoi(ep_ip_port[1])
-	nsService := &struct {
-		Service NetscalerService `json:"service"`
-	}{Service: NetscalerService{Name: sname, Ip: ep_ip_port[0], ServiceType: "HTTP", Port: servicePort}}
-	resourceJson, err := json.Marshal(nsService)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Failed to marshal service %s err=", sname, err))
-		return
+	nsService := basic.Service{
+		Name:        sname,
+		Ip:          ep_ip_port[0],
+		Servicetype: "HTTP",
+		Port:        servicePort,
 	}
-	log.Println(string(resourceJson))
+	_, err := client.AddResource(netscaler.Service.Type(), sname, &nsService)
 
-	body, err := createResource(resourceType, resourceJson)
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Failed to create service %s err=%s", sname, err))
-		return
-	}
-	_ = body
-
-	//bind the lb to the service
-	resourceType = "lbvserver"
-	boundResourceType := "service"
-	if FindBoundResource(resourceType, lbName, boundResourceType, "servicename", sname) == false {
-		nsLbSvcBinding := &struct {
-			Lbvserver_service_binding NetscalerLBServiceBinding `json:"lbvserver_service_binding"`
-		}{Lbvserver_service_binding: NetscalerLBServiceBinding{Name: lbName, ServiceName: sname}}
-		resourceJson, err := json.Marshal(nsLbSvcBinding)
-
-		resourceType = "lbvserver_service_binding"
-
-		body, err := createResource(resourceType, resourceJson)
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed to bind lb %s to service %s, err=%s", lbName, sname, err))
-			//TODO roll back
-			return
+		binding := lb.Lbvserverservicebinding{
+			Name:        lbName,
+			Servicename: sname,
 		}
-		_ = body
+		_ = client.BindResource(netscaler.Lbvserver.Type(), lbName, netscaler.Service.Type(), sname, &binding)
 	}
 }
 
@@ -159,27 +142,16 @@ func ConfigureContentVServer(namespace string, csvserverName string, domainName 
 	lbName := GenerateLbName(namespace, domainName)
 	policyName := GeneratePolicyName(namespace, domainName, path)
 	actionName := GenerateActionName(namespace, domainName, path)
+	client, _ := netscaler.NewNitroClientFromEnv()
 
 	//create a Netscaler Service that represents the Kubernetes service
-	resourceType := "service"
-	if FindResource(resourceType, serviceName) == false {
-		nsService := &struct {
-			Service NetscalerService `json:"service"`
-		}{Service: NetscalerService{Name: serviceName, Ip: serviceIp, ServiceType: "HTTP", Port: servicePort}}
-		resourceJson, err := json.Marshal(nsService)
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed to marshal service %s err=", serviceName, err))
-			return ""
-		}
-		log.Println(string(resourceJson))
-
-		body, err := createResource(resourceType, resourceJson)
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed to create service %s err=%s", serviceName, err))
-			return ""
-		}
-		_ = body
+	nsService := basic.Service{
+		Name:        serviceName,
+		Ip:          serviceIp,
+		Servicetype: "HTTP",
+		Port:        servicePort,
 	}
+	_, _ = client.AddResource(netscaler.Service.Type(), serviceName, &nsService)
 
 	_, present := svcname_refcount[serviceName]
 	if present {
@@ -189,130 +161,71 @@ func ConfigureContentVServer(namespace string, csvserverName string, domainName 
 	}
 
 	//create a Netscaler "lbvserver" to front the service
-	resourceType = "lbvserver"
-	if FindResource(resourceType, lbName) == false {
-		nsLB := &struct {
-			Lbvserver NetscalerLB `json:"lbvserver"`
-		}{Lbvserver: NetscalerLB{Name: lbName, Ipv46: "0.0.0.0", ServiceType: "HTTP", Port: 0}}
-		resourceJson, err := json.Marshal(nsLB)
-
-		body, err := createResource(resourceType, resourceJson)
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed to create lb %s, err=%s", lbName, err))
-			//TODO roll back
-			return ""
-		}
-		_ = body
+	nsLB := lb.Lbvserver{
+		Name:        lbName,
+		Servicetype: "HTTP",
 	}
+	_, _ = client.AddResource(netscaler.Lbvserver.Type(), lbName, &nsLB)
 
 	//bind the lb to the service
-	resourceType = "lbvserver"
-	boundResourceType := "service"
-	if FindBoundResource(resourceType, lbName, boundResourceType, "servicename", serviceName) == false {
-		nsLbSvcBinding := &struct {
-			Lbvserver_service_binding NetscalerLBServiceBinding `json:"lbvserver_service_binding"`
-		}{Lbvserver_service_binding: NetscalerLBServiceBinding{Name: lbName, ServiceName: serviceName}}
-		resourceJson, err := json.Marshal(nsLbSvcBinding)
-
-		resourceType = "lbvserver_service_binding"
-
-		body, err := createResource(resourceType, resourceJson)
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed to bind lb %s to service %s, err=%s", lbName, serviceName, err))
-			//TODO roll back
-			return ""
-		}
-		_ = body
+	binding := lb.Lbvserverservicebinding{
+		Name:        lbName,
+		Servicename: serviceName,
 	}
+	_ = client.BindResource(netscaler.Lbvserver.Type(), lbName, netscaler.Service.Type(), serviceName, &binding)
 
 	//create a content switch action to switch to the lb
-	resourceType = "csaction"
-	if FindResource(resourceType, actionName) == false {
-		nsCsAction := &struct {
-			Csaction NetscalerCsAction `json:"csaction"`
-		}{Csaction: NetscalerCsAction{Name: actionName, TargetLBVserver: lbName}}
-		resourceJson, err := json.Marshal(nsCsAction)
-
-		body, err := createResource(resourceType, resourceJson)
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed to create Content Switching Action %s to LB %s err=%s", actionName, lbName, err))
-			//TODO roll back
-			return ""
-		}
-		_ = body
+	csAction := cs.Csaction{
+		Name:            actionName,
+		Targetlbvserver: lbName,
 	}
+	_, _ = client.AddResource(netscaler.Csaction.Type(), actionName, &csAction)
 
 	//create a content switch policy to use the action
 	var rule string
-	resourceType = "cspolicy"
-	if FindResource(resourceType, policyName) == false {
-		if path != "" {
-			rule = fmt.Sprintf("HTTP.REQ.HOSTNAME.EQ(\"%s\") && HTTP.REQ.URL.PATH.EQ(\"%s\")", domainName, path)
-		} else {
-			rule = fmt.Sprintf("HTTP.REQ.HOSTNAME.EQ(\"%s\")", domainName)
-		}
-		nsCsPolicy := &struct {
-			Cspolicy NetscalerCsPolicy `json:"cspolicy"`
-		}{Cspolicy: NetscalerCsPolicy{PolicyName: policyName, Rule: rule, Action: actionName}}
-		resourceJson, err := json.Marshal(nsCsPolicy)
-
-		body, err := createResource(resourceType, resourceJson)
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed to create Content Switching Policy %s, err=%s", policyName, err))
-			//TODO roll back
-			return ""
-		}
-		_ = body
+	if path != "" {
+		rule = fmt.Sprintf("HTTP.REQ.HOSTNAME.EQ(\"%s\") && HTTP.REQ.URL.PATH.EQ(\"%s\")", domainName, path)
+	} else {
+		rule = fmt.Sprintf("HTTP.REQ.HOSTNAME.EQ(\"%s\")", domainName)
 	}
+	csPolicy := cs.Cspolicy{
+		Policyname: policyName,
+		Rule:       rule,
+		Action:     actionName,
+	}
+	_, _ = client.AddResource(netscaler.Cspolicy.Type(), policyName, &csPolicy)
 
 	//bind the content switch policy to the content switching vserver
-	resourceType = "csvserver"
-	boundResourceType = "cspolicy"
-	if FindBoundResource(resourceType, csvserverName, boundResourceType, "policyname", policyName) == false {
-		nsCsPolicyBinding := &struct {
-			Csvserver_cspolicy_binding NetscalerCsPolicyBinding `json:"csvserver_cspolicy_binding"`
-		}{Csvserver_cspolicy_binding: NetscalerCsPolicyBinding{Name: csvserverName, PolicyName: policyName, Priority: priority, Bindpoint: "REQUEST"}}
-		resourceJson, err := json.Marshal(nsCsPolicyBinding)
-
-		resourceType = "csvserver_cspolicy_binding"
-
-		body, err := createResource(resourceType, resourceJson)
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed to bind Content Switching Policy %s to Content Switching VServer %s, err=%s", policyName, csvserverName, err))
-			return ""
-		}
-		_ = body
+	binding2 := cs.Csvservercspolicybinding{
+		Name:       csvserverName,
+		Policyname: policyName,
+		Priority:   priority,
+		Bindpoint:  "REQUEST",
 	}
+	_ = client.BindResource(netscaler.Csvserver.Type(), csvserverName, netscaler.Cspolicy.Type(), policyName, &binding2)
 
 	return lbName
 }
 
 func CreateContentVServer(csvserverName string, vserverIp string, vserverPort int, protocol string) error {
-	resourceType := "csvserver"
-	if FindResource(resourceType, csvserverName) == false {
-		contentServer := &struct {
-			Csvserver NetscalerCsVserver `json:"csvserver"`
-		}{Csvserver: NetscalerCsVserver{Name: csvserverName, Ipv46: vserverIp, ServiceType: protocol, Port: vserverPort}}
-		resourceJson, err := json.Marshal(contentServer)
-
-		body, err := createResource(resourceType, resourceJson)
-		_ = body
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed to create Content Switching Vserver %s, err=%s", csvserverName, err))
-			return errors.New("Failed to create Content Switching Vserver " + csvserverName)
-		}
+	client, _ := netscaler.NewNitroClientFromEnv()
+	cs := cs.Csvserver{
+		Name:        csvserverName,
+		Ipv46:       vserverIp,
+		Servicetype: protocol,
+		Port:        vserverPort,
 	}
+	_, _ = client.AddResource(netscaler.Csvserver.Type(), csvserverName, &cs)
 	return nil
 }
 
 func DeleteContentVServer(csvserverName string, svcname_refcount map[string]int, lbName_map map[string]int) {
+	client, _ := netscaler.NewNitroClientFromEnv()
 	policyNames, _ := ListBoundPolicies(csvserverName)
 
 	for _, policyName := range policyNames {
 		//unbind the content switch policy from the content switching vserver
-		resourceType := "csvserver_cspolicy_binding"
-
-		_, err := unbindResource(resourceType, csvserverName, "policyName", policyName)
+		err := client.UnbindResource(netscaler.Csvserver.Type(), csvserverName, netscaler.Cspolicy.Type(), policyName, "policyName")
 		if err != nil {
 			log.Fatal(fmt.Sprintf("Failed to unbind Content Switching Policy %s fromo Content Switching VServer %s, err=%s", policyName, csvserverName, err))
 			continue
@@ -321,10 +234,7 @@ func DeleteContentVServer(csvserverName string, svcname_refcount map[string]int,
 		//find the action name from the policy
 		actionName := ListPolicyAction(policyName)
 
-		//delete the content switch policy that uses the action
-		resourceType = "cspolicy"
-
-		_, err = deleteResource(resourceType, policyName)
+		err = client.DeleteResource(netscaler.Cspolicy.Type(), policyName)
 		if err != nil {
 			log.Printf("Failed to delete Content Switching Policy %s, err=%s", policyName, err)
 			continue
@@ -337,9 +247,7 @@ func DeleteContentVServer(csvserverName string, svcname_refcount map[string]int,
 			continue
 		}
 		//delete content switch action that switches to the lb
-		resourceType = "csaction"
-
-		_, err = deleteResource(resourceType, actionName)
+		err = client.DeleteResource(netscaler.Csaction.Type(), actionName)
 		if err != nil {
 			log.Fatal(fmt.Sprintf("Failed to delete Content Switching Action %s for LB %s err=%s", actionName, lbName, err))
 			return
@@ -352,11 +260,8 @@ func DeleteContentVServer(csvserverName string, svcname_refcount map[string]int,
 			continue
 		}
 		for _, sname := range serviceNames {
+			err = client.UnbindResource(netscaler.Lbvserver.Type(), lbName, netscaler.Service.Type(), sname, "servicename")
 
-			//unbind the service from the LB
-			resourceType = "lbvserver_service_binding"
-
-			_, err = unbindResource(resourceType, lbName, "servicename", sname)
 			if err != nil {
 				log.Fatal(fmt.Sprintf("Failed to unbind svc %s from lb %s, err=%s", sname, lbName, err))
 				continue
@@ -364,13 +269,7 @@ func DeleteContentVServer(csvserverName string, svcname_refcount map[string]int,
 		}
 
 		//delete  "lbvserver" that fronts the service
-		resourceType = "lbvserver"
-
-		_, err = deleteResource(resourceType, lbName)
-		if err != nil {
-			log.Println(fmt.Sprintf("Failed to delete lb %s, err=%s", lbName, err))
-			continue
-		}
+		err = client.DeleteResource(netscaler.Lbvserver.Type(), lbName)
 
 		if lbName_map != nil {
 			delete(lbName_map, lbName)
@@ -379,8 +278,6 @@ func DeleteContentVServer(csvserverName string, svcname_refcount map[string]int,
 		//Delete the Netscaler Services
 		for _, sname := range serviceNames {
 
-			resourceType = "service"
-
 			_, present := svcname_refcount[sname]
 			if present {
 				svcname_refcount[sname]--
@@ -388,7 +285,7 @@ func DeleteContentVServer(csvserverName string, svcname_refcount map[string]int,
 
 			if svcname_refcount[sname] == 0 {
 				delete(svcname_refcount, sname)
-				_, err = deleteResource(resourceType, sname)
+				err = client.DeleteResource(netscaler.Service.Type(), sname)
 				if err != nil {
 					log.Println(fmt.Sprintf("Failed to delete service %s err=%s", sname, err))
 					continue
@@ -396,68 +293,7 @@ func DeleteContentVServer(csvserverName string, svcname_refcount map[string]int,
 			}
 		}
 	}
-	deleteResource("csvserver", csvserverName)
-
-}
-
-func UnconfigureContentVServer(namespace string, csvserverName string, domainName string, path string, serviceName string) {
-	lbName := GenerateLbName(namespace, domainName)
-	actionName := GenerateActionName(namespace, domainName, path)
-	policyName := GeneratePolicyName(namespace, domainName, path)
-
-	//unbind the content switch policy from the content switching vserver
-	resourceType := "csvserver_cspolicy_binding"
-
-	body, err := unbindResource(resourceType, csvserverName, "policyName", policyName)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Failed to unbind Content Switching Policy %s fromo Content Switching VServer %s, err=%s", policyName, csvserverName, err))
-		return
-	}
-
-	//delete the content switch policy that uses the action
-	resourceType = "cspolicy"
-
-	body, err = deleteResource(resourceType, policyName)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Failed to delete Content Switching Policy %s, err=%s", policyName, err))
-		return
-	}
-
-	//delete content switch action that switches to the lb
-	resourceType = "csaction"
-
-	body, err = deleteResource(resourceType, actionName)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Failed to delete Content Switching Action %s for LB %s err=%s", actionName, lbName, err))
-		return
-	}
-
-	//unbind the service from the LB
-	resourceType = "lbvserver_service_binding"
-
-	body, err = unbindResource(resourceType, lbName, "servicename", serviceName)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Failed to unbind svc %s from lb %s, err=%s", serviceName, lbName, err))
-		return
-	}
-
-	//delete  "lbvserver" that fronts the service
-	resourceType = "lbvserver"
-
-	body, err = deleteResource(resourceType, lbName)
-	if err != nil {
-		log.Println(fmt.Sprintf("Failed to delete lb %s, err=%s", lbName, err))
-	}
-
-	//Delete the Netscaler Service
-	resourceType = "service"
-
-	body, err = deleteResource(resourceType, serviceName)
-	if err != nil {
-		log.Println(fmt.Sprintf("Failed to delete %s err=%s", serviceName, err))
-	}
-	_ = body
-
+	_ = client.DeleteResource(netscaler.Csvserver.Type(), csvserverName)
 }
 
 func FindContentVserver(csvserverName string) bool {
@@ -648,34 +484,4 @@ func ListBoundServicesForLB(lbName string) ([]string, error) {
 		ret = append(ret, sname)
 	}
 	return ret, nil
-}
-
-func FindResource(resourceType string, resourceName string) bool {
-	_, err := listResource(resourceType, resourceName)
-	if err != nil {
-		log.Printf("No %s %s found", resourceType, resourceName)
-		return false
-	}
-	log.Printf("%s %s is alredy present", resourceType, resourceName)
-	return true
-}
-
-func FindBoundResource(resourceType string, resourceName string, boundResourceType string, boundResourceFilterName string, boundResourceFilterValue string) bool {
-	result, err := listBoundResources(resourceName, resourceType, boundResourceType, boundResourceFilterName, boundResourceFilterValue)
-	if err != nil {
-		log.Printf("No %s %s to %s %s binding found", resourceType, resourceName, boundResourceType, boundResourceFilterValue)
-		return false
-	}
-
-	var data map[string]interface{}
-	if err := json.Unmarshal(result, &data); err != nil {
-		log.Println("Failed to unmarshal Netscaler Response!")
-		return false
-	}
-	if data[fmt.Sprintf("%s_%s_binding", resourceType, boundResourceType)] == nil {
-		return false
-	}
-
-	log.Printf("%s %s is alredy bound to %s %s", resourceType, resourceName, boundResourceType, boundResourceFilterValue)
-	return true
 }
