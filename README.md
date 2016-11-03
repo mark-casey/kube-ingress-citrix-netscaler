@@ -16,7 +16,7 @@ The NetScaler MPX/VPX instance acts as a load balancer by directly identifying t
 ----------------
 ## Getting the Code
 ----------------
-`git clone https://github.com/chiradeep/kube-ingress-citrix-netscaler.git`
+`git clone https://github.com/citrix/kube-ingress-citrix-netscaler.git`
 
 The associated docker images can be obtained from dockerhub here:
 https://hub.docker.com/u/adhamija/
