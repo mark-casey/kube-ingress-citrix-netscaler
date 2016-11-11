@@ -19,19 +19,19 @@
 		},
 		{
 			"ImportPath": "github.com/chiradeep/go-nitro/config/basic",
-			"Rev": "651dcf75be3adecb245c4578f959b747316e9c19"
+			"Rev": "fcf0f05afbd38b080ee109a38123f328d64500a8"
 		},
 		{
 			"ImportPath": "github.com/chiradeep/go-nitro/config/cs",
-			"Rev": "651dcf75be3adecb245c4578f959b747316e9c19"
+			"Rev": "fcf0f05afbd38b080ee109a38123f328d64500a8"
 		},
 		{
 			"ImportPath": "github.com/chiradeep/go-nitro/config/lb",
-			"Rev": "651dcf75be3adecb245c4578f959b747316e9c19"
+			"Rev": "fcf0f05afbd38b080ee109a38123f328d64500a8"
 		},
 		{
 			"ImportPath": "github.com/chiradeep/go-nitro/netscaler",
-			"Rev": "651dcf75be3adecb245c4578f959b747316e9c19"
+			"Rev": "fcf0f05afbd38b080ee109a38123f328d64500a8"
 		},
 		{
 			"ImportPath": "github.com/cloudfoundry-incubator/candiedyaml",
