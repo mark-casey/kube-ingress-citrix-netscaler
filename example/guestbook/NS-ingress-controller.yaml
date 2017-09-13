@@ -17,9 +17,9 @@ spec:
       - name: nsingress
         image: docker.io/adhamija/k8s:v1
         env:
-        - name: NS_IP
-          value: 10.217.129.75
-        - name: NS_USERNAME
+        - name: NS_URL
+          value: "http://10.217.129.75/"
+        - name: NS_LOGIN
           valueFrom:
             secretKeyRef:
               name: ns-login-secret
