@@ -83,7 +83,7 @@ func AddAndBindService(lbName string, sname string, IpPort string) {
 	}
 	_, err := client.AddResource(netscaler.Service.Type(), sname, &nsService)
 
-	if err != nil {
+	if err == nil {
 		binding := lb.Lbvserverservicebinding{
 			Name:        lbName,
 			Servicename: sname,

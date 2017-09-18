@@ -45,7 +45,7 @@ var priority = 10
 var knownEndpoints = make(map[string]map[string]string)
 var svcname_refcount = make(map[string]int)                // Reference count of NS full service name
 var ing_svcname_refcount = make(map[string]map[string]int) // Reference count of ingresses per kubernetes service
-var lbNameMap = make(map[string]int)
+//var lbNameMap = make(map[string]int)
 
 func ingressRuleToPolicyName(namespace string, rule extensions.IngressRule) []string {
 	resultPolicyNames := []string{}
@@ -101,6 +101,7 @@ func ingressToNetscalerConfig(kubeClient *client.Client, csvserverName string, i
 		host := rule.Host
 		namespace := ingress.Namespace
 		thisIngEndpoints := make(map[string]string)
+                lbNameMap := make(map[string]int)
 		var lbName string
 		for _, path := range rule.HTTP.Paths {
 			path_ := path.Path
@@ -246,7 +247,7 @@ func delIngress(kubeClient *client.Client, ing *extensions.Ingress) {
 			serviceName := path.Backend.ServiceName
 			DeleteContentVServer(csvserverName, svcname_refcount, ing_svcname_refcount[serviceName])
 			lbName_map := ing_svcname_refcount[serviceName]
-			lbNameMap = lbName_map
+			//lbNameMap = lbName_map
 			if len(lbName_map) == 0 {
 				delete(ing_svcname_refcount, serviceName)
 				delete(knownEndpoints, serviceName)
